@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <Sdk Name="Aspire.AppHost.Sdk" Version="9.5.2"/>
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <UserSecretsId>39c5398c-5519-46fc-b27d-2cb331ee1890</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Aspire.Hosting.AppHost" Version="9.5.2"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CaptureTheFlag.App\CaptureTheFlag.App.csproj" />
+        <ProjectReference Include="..\CaptureTheFlag.Web\CaptureTheFlag.Web.csproj" />
+    </ItemGroup>
+
+</Project>

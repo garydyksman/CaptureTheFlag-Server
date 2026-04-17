@@ -1,0 +1,38 @@
+@using QRCoder
+
+@if (_dataUri is not null)
+{
+    <div class="text-center">
+        <img src="@_dataUri" alt="QR code" class="img-fluid border rounded mx-auto d-block" style="max-width: min(240px, 100%)" />
+        @if (!string.IsNullOrWhiteSpace(Label))
+        {
+            <div class="fw-semibold mt-2">@Label</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(Text))
+        {
+            <div class="small text-break text-muted mt-1">@Text</div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public string? Label { get; set; }
+
+    private string? _dataUri;
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrWhiteSpace(Text))
+        {
+            _dataUri = null;
+            return;
+        }
+
+        using var generator = new QRCodeGenerator();
+        using var data = generator.CreateQrCode(Text, QRCodeGenerator.ECCLevel.Q);
+        var png = new PngByteQRCode(data);
+        var bytes = png.GetGraphic(12);
+        _dataUri = "data:image/png;base64," + Convert.ToBase64String(bytes);
+    }
+}

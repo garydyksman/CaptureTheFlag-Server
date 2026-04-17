@@ -1,0 +1,40 @@
+@page "/qr"
+@rendermode InteractiveServer
+@inject NavigationManager Navigation
+@inject TunnelPublicUrls PublicUrls
+
+<PageTitle>QR codes</PageTitle>
+
+<h1 class="h3 mb-3">QR codes</h1>
+<p class="text-muted small mb-4">Scan on your phone or flash to devices. URLs match how you opened this site (tunnel or local).</p>
+
+<div class="row g-4">
+    <div class="col-12 col-md-6">
+        <h2 class="h6 text-muted text-uppercase">Phone (Blazor)</h2>
+        <QrCode Text="@_publicAppUrl" Label="Admin UI" />
+    </div>
+    <div class="col-12 col-md-6">
+        <h2 class="h6 text-muted text-uppercase">Devices (Web API)</h2>
+        @if (!string.IsNullOrEmpty(_publicApiUrl))
+        {
+            <QrCode Text="@_publicApiUrl" Label="API base URL" />
+        }
+        else
+        {
+            <p class="text-muted small mb-0">
+                When you run the App Host with a dev tunnel, Aspire injects <code>services:webapi:https:0</code> and the API QR appears here for ESP32 firmware.
+            </p>
+        }
+    </div>
+</div>
+
+@code {
+    private string? _publicAppUrl;
+    private string? _publicApiUrl;
+
+    protected override void OnInitialized()
+    {
+        _publicAppUrl = Navigation.BaseUri.TrimEnd('/');
+        _publicApiUrl = PublicUrls.WebApiPublicBase;
+    }
+}

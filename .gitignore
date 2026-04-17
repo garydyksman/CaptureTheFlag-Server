@@ -37,6 +37,11 @@ artifacts/
 .DS_Store
 Thumbs.db
 
+## Local databases
+*.db
+*.db-shm
+*.db-wal
+
 ## Aspire / local tooling
 .aspire/
 

@@ -1,0 +1,272 @@
+@page "/"
+@rendermode InteractiveServer
+@inject GameApiClient Api
+
+<PageTitle>Game</PageTitle>
+
+<h1 class="h3 mb-3">Game</h1>
+
+@if (!string.IsNullOrEmpty(_error))
+{
+    <div class="alert alert-danger" role="alert">@_error</div>
+}
+
+<div class="d-grid gap-2 d-sm-flex flex-sm-wrap mb-3">
+    <button type="button" class="btn btn-primary" @onclick="CreateGameAsync" disabled="@_busy">New game</button>
+    <button type="button" class="btn btn-outline-secondary" @onclick="RefreshAsync" disabled="@_busy">Refresh</button>
+</div>
+
+@if (_games.Count == 0 && !_busy)
+{
+    <p class="text-muted">No games yet. Create one to get started.</p>
+}
+else
+{
+    @* Narrow screens: stacked cards with full-width actions *@
+    <div class="d-md-none game-mobile-list">
+        @foreach (var g in _games.OrderByDescending(x => x.Id))
+        {
+            <div class="card mb-3 shadow-sm @(g.Id == _selectedId ? "border border-primary border-2" : "border-0")">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                        <div class="min-w-0">
+                            <div class="fw-semibold">Game <span class="text-muted">#@g.Id</span></div>
+                            <code class="small">@g.Status</code>
+                        </div>
+                        <span class="badge text-bg-secondary flex-shrink-0">@g.Devices.Count devices</span>
+                    </div>
+                    <div class="small text-muted text-break mb-3">@g.CreateTime.ToString("u")</div>
+                    <div class="d-grid gap-2">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <button type="button" class="btn btn-outline-primary w-100 py-2" @onclick="() => SelectAsync(g.Id)" disabled="@_busy">Details</button>
+                            </div>
+                            <div class="col-6">
+                                <button type="button" class="btn btn-outline-secondary w-100 py-2" @onclick="() => OpenLobbyAsync(g.Id)" disabled="@(_busy || g.Status != GamePhase.Created)">Lobby</button>
+                            </div>
+                            <div class="col-6">
+                                <button type="button" class="btn btn-success w-100 py-2" @onclick="() => StartAsync(g.Id)" disabled="@(_busy || g.Status != GamePhase.WaitingForPlayers)">Start</button>
+                            </div>
+                            <div class="col-6">
+                                <button type="button" class="btn btn-warning w-100 py-2" @onclick="() => FinishAsync(g.Id)" disabled="@(_busy || g.Status != GamePhase.InProgress)">Finish</button>
+                            </div>
+                            <div class="col-12">
+                                <button type="button" class="btn btn-danger w-100 py-2" @onclick="() => DeleteAsync(g.Id)" disabled="@_busy">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @* md+: compact table *@
+    <div class="d-none d-md-block table-responsive">
+        <table class="table table-striped table-sm align-middle">
+            <thead>
+            <tr>
+                <th>Id</th>
+                <th>Status</th>
+                <th>Created (UTC)</th>
+                <th>Devices</th>
+                <th class="text-end">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var g in _games.OrderByDescending(x => x.Id))
+            {
+                <tr class="@(g.Id == _selectedId ? "table-active" : null)">
+                    <td>@g.Id</td>
+                    <td><code>@g.Status</code></td>
+                    <td>@g.CreateTime.ToString("u")</td>
+                    <td>@g.Devices.Count</td>
+                    <td class="text-end">
+                        <div class="d-flex flex-wrap justify-content-end gap-1">
+                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => SelectAsync(g.Id)" disabled="@_busy">Details</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => OpenLobbyAsync(g.Id)" disabled="@(_busy || g.Status != GamePhase.Created)">Lobby</button>
+                            <button type="button" class="btn btn-sm btn-success" @onclick="() => StartAsync(g.Id)" disabled="@(_busy || g.Status != GamePhase.WaitingForPlayers)">Start</button>
+                            <button type="button" class="btn btn-sm btn-warning" @onclick="() => FinishAsync(g.Id)" disabled="@(_busy || g.Status != GamePhase.InProgress)">Finish</button>
+                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => DeleteAsync(g.Id)" disabled="@_busy">Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (_selected is not null)
+{
+    <hr class="my-4"/>
+    <h2 class="h4">Game @_selected.Id</h2>
+    <p class="text-muted mb-3">Status: <strong>@_selected.Status</strong></p>
+
+    @if (_selected.Devices.Count == 0)
+    {
+        <p class="text-muted">No devices registered yet.</p>
+    }
+    else
+    {
+        <div class="d-md-none">
+            @foreach (var d in _selected.Devices.OrderBy(x => x.AddedOn))
+            {
+                <div class="card mb-2 border-0 shadow-sm">
+                    <div class="card-body py-3">
+                        <div class="fw-semibold mb-2">@d.PlayerName</div>
+                        <dl class="row small mb-0 gx-2">
+                            <dt class="col-5 text-muted">Db Id</dt>
+                            <dd class="col-7 text-break">@d.Id</dd>
+                            <dt class="col-5 text-muted">DeviceId</dt>
+                            <dd class="col-7 text-break">@(d.DeviceId?.ToString() ?? "—")</dd>
+                            <dt class="col-5 text-muted">Team</dt>
+                            <dd class="col-7">@(d.Team ?? "—")</dd>
+                            <dt class="col-5 text-muted">Combat</dt>
+                            <dd class="col-7">@(d.CombatScore?.ToString() ?? "—")</dd>
+                            <dt class="col-5 text-muted">Enemy flag</dt>
+                            <dd class="col-7 text-break">@(d.EnemyFlagId?.ToString() ?? "—")</dd>
+                            <dt class="col-5 text-muted">Joined (UTC)</dt>
+                            <dd class="col-7 text-break small">@d.AddedOn.ToString("u")</dd>
+                        </dl>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="d-none d-md-block table-responsive">
+            <table class="table table-bordered table-sm">
+                <thead>
+                <tr>
+                    <th>Db Id</th>
+                    <th>DeviceId</th>
+                    <th>Player</th>
+                    <th>Team</th>
+                    <th>Combat</th>
+                    <th>Enemy flag</th>
+                    <th>Joined (UTC)</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var d in _selected.Devices.OrderBy(x => x.AddedOn))
+                {
+                    <tr>
+                        <td>@d.Id</td>
+                        <td>@(d.DeviceId?.ToString() ?? "—")</td>
+                        <td>@d.PlayerName</td>
+                        <td>@(d.Team ?? "—")</td>
+                        <td>@(d.CombatScore?.ToString() ?? "—")</td>
+                        <td>@(d.EnemyFlagId?.ToString() ?? "—")</td>
+                        <td>@d.AddedOn.ToString("u")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    private readonly List<GameListItemDto> _games = [];
+    private GameListItemDto? _selected;
+    private int? _selectedId;
+    private string? _error;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        await RunSafeAsync(RefreshCoreAsync);
+    }
+
+    private async Task CreateGameAsync()
+    {
+        await RunSafeAsync(async () =>
+        {
+            await Api.CreateGameAsync();
+            await RefreshCoreAsync();
+        });
+    }
+
+    private async Task OpenLobbyAsync(int id)
+    {
+        await RunSafeAsync(async () =>
+        {
+            await Api.OpenLobbyAsync(id);
+            await RefreshCoreAsync();
+        });
+    }
+
+    private async Task StartAsync(int id)
+    {
+        await RunSafeAsync(async () =>
+        {
+            await Api.StartGameAsync(id);
+            await RefreshCoreAsync();
+        });
+    }
+
+    private async Task FinishAsync(int id)
+    {
+        await RunSafeAsync(async () =>
+        {
+            await Api.FinishGameAsync(id);
+            await RefreshCoreAsync();
+        });
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        await RunSafeAsync(async () =>
+        {
+            await Api.DeleteGameAsync(id);
+            if (_selectedId == id)
+            {
+                _selectedId = null;
+                _selected = null;
+            }
+
+            await RefreshCoreAsync();
+        });
+    }
+
+    private async Task SelectAsync(int id)
+    {
+        await RunSafeAsync(async () =>
+        {
+            _selectedId = id;
+            _selected = await Api.GetGameAsync(id) ?? _games.FirstOrDefault(g => g.Id == id);
+        });
+    }
+
+    private async Task RefreshCoreAsync()
+    {
+        _games.Clear();
+        _games.AddRange(await Api.GetGamesAsync());
+        if (_selectedId is { } id)
+        {
+            _selected = await Api.GetGameAsync(id) ?? _games.FirstOrDefault(g => g.Id == id);
+        }
+    }
+
+    private async Task RunSafeAsync(Func<Task> work)
+    {
+        _error = null;
+        _busy = true;
+        try
+        {
+            await work();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

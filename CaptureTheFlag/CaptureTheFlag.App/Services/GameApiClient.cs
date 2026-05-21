@@ -62,6 +62,13 @@ public sealed class GameApiClient(HttpClient http)
         await EnsureOkAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>Removes a lobby registration (database device row id). Only allowed while the game is <see cref="GamePhase.WaitingForPlayers"/>.</summary>
+    public async Task RemoveLobbyDeviceAsync(int gameId, int deviceDbId, CancellationToken cancellationToken = default)
+    {
+        using var response = await http.DeleteAsync($"api/games/{gameId}/devices/{deviceDbId}", cancellationToken).ConfigureAwait(false);
+        await EnsureOkAsync(response, cancellationToken).ConfigureAwait(false);
+    }
+
     private static async Task EnsureOkAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         if (response.IsSuccessStatusCode)

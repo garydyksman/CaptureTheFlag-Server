@@ -1,89 +1,92 @@
-@CaptureTheFlag.Web_HostAddress = http://localhost:5096
-
-### Swagger UI (Development)
-GET {{CaptureTheFlag.Web_HostAddress}}/swagger/index.html
-
-### List games
-GET {{CaptureTheFlag.Web_HostAddress}}/api/games
-Accept: application/json
-
-### Get game by id
-GET {{CaptureTheFlag.Web_HostAddress}}/api/games/1
-Accept: application/json
-
-### Create game
-POST {{CaptureTheFlag.Web_HostAddress}}/api/games
-Content-Type: application/json
-
-{}
-
-### Status: Created -> WaitingForPlayers (required before device or admin registration)
-POST {{CaptureTheFlag.Web_HostAddress}}/api/games/1/status/waiting-for-players
-
-### Register device on admin API (only when game is WaitingForPlayers)
-POST {{CaptureTheFlag.Web_HostAddress}}/api/games/1/devices
-Content-Type: application/json
-
-{
-  "playerName": "Alpha"
-}
-
-### Register second device
-POST {{CaptureTheFlag.Web_HostAddress}}/api/games/1/devices
-Content-Type: application/json
-
-{
-  "playerName": "Bravo"
-}
-
-### Status: WaitingForPlayers -> InProgress (assigns teams / device ids / scores; sets StartTime)
-POST {{CaptureTheFlag.Web_HostAddress}}/api/games/1/status/in-progress
-
-### Player info for device (camelCase JSON; use database device row id from registration response)
-GET {{CaptureTheFlag.Web_HostAddress}}/api/games/1/devices/1/player-info
-Accept: application/json
-
-### Status: InProgress -> Finished (sets EndTime)
-POST {{CaptureTheFlag.Web_HostAddress}}/api/games/1/status/finished
-
-### Delete game
-DELETE {{CaptureTheFlag.Web_HostAddress}}/api/games/1
-
-### --- Device API (ESP32 / IGameHttpClient), relative to same host ---
-
-### GET current game (status 0-3, players always an array)
-GET {{CaptureTheFlag.Web_HostAddress}}/api/game
-Accept: application/json
-
-### POST register (200 { "deviceId": <byte> }; game must be WaitingForPlayers)
-POST {{CaptureTheFlag.Web_HostAddress}}/api/game/register
-Content-Type: application/json
-
-{
-  "playerName": "Sarah"
-}
-
-### POST combat (200 empty body when ok)
-POST {{CaptureTheFlag.Web_HostAddress}}/api/game/combat
-Content-Type: application/json
-
-{
-  "winnerId": 1,
-  "loserId": 2,
-  "loserHadKey": false
-}
-
-### POST deliver (key optional; Base64 when present)
-POST {{CaptureTheFlag.Web_HostAddress}}/api/game/deliver
-Content-Type: application/json
-
-{
-  "deviceId": 1,
-  "key": "AQID"
-}
-
-### GET respawn (200 { "deviceId", "combatScore" })
-GET {{CaptureTheFlag.Web_HostAddress}}/api/game/respawn/1
-Accept: application/json
-
-###
+@CaptureTheFlag.Web_HostAddress = http://localhost:5096
+
+### Swagger UI (Development)
+GET {{CaptureTheFlag.Web_HostAddress}}/swagger/index.html
+
+### List games
+GET {{CaptureTheFlag.Web_HostAddress}}/api/games
+Accept: application/json
+
+### Get game by id
+GET {{CaptureTheFlag.Web_HostAddress}}/api/games/1
+Accept: application/json
+
+### Create game
+POST {{CaptureTheFlag.Web_HostAddress}}/api/games
+Content-Type: application/json
+
+{}
+
+### Status: Created -> WaitingForPlayers (required before device or admin registration)
+POST {{CaptureTheFlag.Web_HostAddress}}/api/games/1/status/waiting-for-players
+
+### Register device on admin API (only when game is WaitingForPlayers)
+POST {{CaptureTheFlag.Web_HostAddress}}/api/games/1/devices
+Content-Type: application/json
+
+{
+  "playerName": "Alpha"
+}
+
+### Register second device
+POST {{CaptureTheFlag.Web_HostAddress}}/api/games/1/devices
+Content-Type: application/json
+
+{
+  "playerName": "Bravo"
+}
+
+### Remove lobby player (Db Id from GET game / devices list; only while WaitingForPlayers)
+DELETE {{CaptureTheFlag.Web_HostAddress}}/api/games/1/devices/1
+
+### Status: WaitingForPlayers -> InProgress (assigns teams / device ids / scores; sets StartTime)
+POST {{CaptureTheFlag.Web_HostAddress}}/api/games/1/status/in-progress
+
+### Player info for device (camelCase JSON; use database device row id from registration response)
+GET {{CaptureTheFlag.Web_HostAddress}}/api/games/1/devices/1/player-info
+Accept: application/json
+
+### Status: InProgress -> Finished (sets EndTime)
+POST {{CaptureTheFlag.Web_HostAddress}}/api/games/1/status/finished
+
+### Delete game
+DELETE {{CaptureTheFlag.Web_HostAddress}}/api/games/1
+
+### --- Device API (ESP32 / IGameHttpClient), relative to same host ---
+
+### GET current game (status 0-3, players always an array)
+GET {{CaptureTheFlag.Web_HostAddress}}/api/game
+Accept: application/json
+
+### POST register (200 { "deviceId": <byte> }; game must be WaitingForPlayers)
+POST {{CaptureTheFlag.Web_HostAddress}}/api/game/register
+Content-Type: application/json
+
+{
+  "playerName": "Sarah"
+}
+
+### POST combat (200 empty body when ok)
+POST {{CaptureTheFlag.Web_HostAddress}}/api/game/combat
+Content-Type: application/json
+
+{
+  "winnerId": 1,
+  "loserId": 2,
+  "loserHadKey": false
+}
+
+### POST deliver (key optional; Base64 when present)
+POST {{CaptureTheFlag.Web_HostAddress}}/api/game/deliver
+Content-Type: application/json
+
+{
+  "deviceId": 1,
+  "key": "AQID"
+}
+
+### GET respawn (200 { "deviceId", "combatScore" })
+GET {{CaptureTheFlag.Web_HostAddress}}/api/game/respawn/1
+Accept: application/json
+
+###

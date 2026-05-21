@@ -9,6 +9,7 @@ public record GameDeviceDto(
     byte? DeviceId,
     string? Team,
     byte? CombatScore,
+    int CombatReportScore,
     byte? EnemyFlagId);
 
 public record RegisterDeviceRequest(string? PlayerName);

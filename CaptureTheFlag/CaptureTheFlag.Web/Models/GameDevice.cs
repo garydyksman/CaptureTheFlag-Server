@@ -13,5 +13,6 @@ public class GameDevice
 
     public string? Team { get; set; }
     public byte? CombatScore { get; set; }
+    public int CombatReportScore { get; set; }
     public byte? EnemyFlagId { get; set; }
 }

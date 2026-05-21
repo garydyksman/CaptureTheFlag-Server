@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using CaptureTheFlag.Web.Data;
 using CaptureTheFlag.Web.Endpoints;
+using CaptureTheFlag.Web.Middleware;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
@@ -73,6 +74,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseForwardedHeaders();
+app.UseApiRequestLogging();
 app.UseHttpsRedirection();
 
 app.MapGameEndpoints();

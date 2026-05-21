@@ -22,6 +22,36 @@ a, .btn-link {
     overflow-x: hidden;
 }
 
+.scoreboard-dashboard .card {
+    background-color: #f8f9fb;
+}
+
+.scoreboard-rank-border-1 {
+    border-left: 0.35rem solid #d4af37;
+}
+
+.scoreboard-rank-border-2 {
+    border-left: 0.35rem solid #adb5bd;
+}
+
+.scoreboard-rank-border-3 {
+    border-left: 0.35rem solid #b87333;
+}
+
+.live-dot {
+    display: inline-block;
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background-color: #fff;
+    animation: live-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+}
+
 /* Slightly larger tap targets on very small phones */
 @media (max-width: 767.98px) {
     .game-mobile-list .btn {

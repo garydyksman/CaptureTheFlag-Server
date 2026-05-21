@@ -1,6 +1,7 @@
 @page "/"
 @rendermode InteractiveServer
 @inject GameApiClient Api
+@implements IAsyncDisposable
 
 <PageTitle>Game</PageTitle>
 
@@ -98,9 +99,120 @@ else
 
 @if (_selected is not null)
 {
+    var scoreboard = BuildScoreboard(_selected);
+    var leader = scoreboard.FirstOrDefault();
+    var trailing = scoreboard.LastOrDefault();
+    var totalCombatScore = scoreboard.Sum(x => x.CombatReportScore);
+    var scoreSpread = LeaderboardSpread(scoreboard);
+
     <hr class="my-4"/>
-    <h2 class="h4">Game @_selected.Id</h2>
+    <div class="d-flex align-items-center gap-2 mb-1">
+        <h2 class="h4 mb-0">Game @_selected.Id</h2>
+        @if (_selected.Status == GamePhase.InProgress)
+        {
+            <span class="badge text-bg-success d-flex align-items-center gap-1">
+                <span class="live-dot"></span> Live
+            </span>
+        }
+    </div>
     <p class="text-muted mb-3">Status: <strong>@_selected.Status</strong></p>
+
+    <div class="scoreboard-dashboard mb-4">
+        <div class="row g-2 g-md-3">
+            <div class="col-6 col-lg-3">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body py-3">
+                        <div class="small text-muted">Top player</div>
+                        <div class="fw-semibold text-truncate">@(leader?.PlayerName ?? "-")</div>
+                        <div class="small">Battles won: <strong>@(leader?.CombatReportScore ?? 0)</strong></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body py-3">
+                        <div class="small text-muted">Trailing player</div>
+                        <div class="fw-semibold text-truncate">@(trailing?.PlayerName ?? "-")</div>
+                        <div class="small">Battles won: <strong>@(trailing?.CombatReportScore ?? 0)</strong></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body py-3">
+                        <div class="small text-muted">Total battles</div>
+                        <div class="h5 mb-0">@totalCombatScore</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body py-3">
+                        <div class="small text-muted">Score spread</div>
+                        <div class="h5 mb-0">@scoreSpread</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (scoreboard.Count > 0)
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body pb-2">
+                <h3 class="h6 mb-3">Combat Scoreboard</h3>
+
+                <div class="d-md-none">
+                    @foreach (var row in scoreboard)
+                    {
+                        <div class="card mb-2 border scoreboard-rank-border-@Math.Min(row.Rank, 3)">
+                            <div class="card-body py-2">
+                                <div class="d-flex justify-content-between align-items-center gap-2">
+                                    <div class="min-w-0">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge text-bg-dark">#@row.Rank</span>
+                                            <span class="fw-semibold text-truncate">@row.PlayerName</span>
+                                        </div>
+                                        <div class="small text-muted mt-1">Device @(row.DeviceId?.ToString() ?? "-")</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="h5 mb-0">@row.CombatReportScore</div>
+                                        <div class="small text-muted">battles won</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="d-none d-md-block table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Player</th>
+                            <th>Device</th>
+                            <th>Team</th>
+                            <th class="text-end">Battles won</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var row in scoreboard)
+                        {
+                            <tr>
+                                <td><span class="badge text-bg-dark">#@row.Rank</span></td>
+                                <td>@row.PlayerName</td>
+                                <td>@(row.DeviceId?.ToString() ?? "-")</td>
+                                <td>@(row.Team ?? "-")</td>
+                                <td class="text-end fw-semibold">@row.CombatReportScore</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
 
     @if (_selected.Devices.Count == 0)
     {
@@ -121,13 +233,17 @@ else
                             <dd class="col-7 text-break">@(d.DeviceId?.ToString() ?? "—")</dd>
                             <dt class="col-5 text-muted">Team</dt>
                             <dd class="col-7">@(d.Team ?? "—")</dd>
-                            <dt class="col-5 text-muted">Combat</dt>
+                            <dt class="col-5 text-muted">Combat score</dt>
                             <dd class="col-7">@(d.CombatScore?.ToString() ?? "—")</dd>
                             <dt class="col-5 text-muted">Enemy flag</dt>
                             <dd class="col-7 text-break">@(d.EnemyFlagId?.ToString() ?? "—")</dd>
                             <dt class="col-5 text-muted">Joined (UTC)</dt>
                             <dd class="col-7 text-break small">@d.AddedOn.ToString("u")</dd>
                         </dl>
+                        @if (_selected.Status == GamePhase.WaitingForPlayers)
+                        {
+                            <button type="button" class="btn btn-outline-danger btn-sm w-100 mt-3" @onclick="() => RemoveLobbyPlayerAsync(_selected.Id, d.Id)" disabled="@_busy">Remove from lobby</button>
+                        }
                     </div>
                 </div>
             }
@@ -141,9 +257,13 @@ else
                     <th>DeviceId</th>
                     <th>Player</th>
                     <th>Team</th>
-                    <th>Combat</th>
+                    <th>Combat score</th>
                     <th>Enemy flag</th>
                     <th>Joined (UTC)</th>
+                    @if (_selected.Status == GamePhase.WaitingForPlayers)
+                    {
+                        <th class="text-end">Lobby</th>
+                    }
                 </tr>
                 </thead>
                 <tbody>
@@ -157,6 +277,12 @@ else
                         <td>@(d.CombatScore?.ToString() ?? "—")</td>
                         <td>@(d.EnemyFlagId?.ToString() ?? "—")</td>
                         <td>@d.AddedOn.ToString("u")</td>
+                        @if (_selected.Status == GamePhase.WaitingForPlayers)
+                        {
+                            <td class="text-end text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveLobbyPlayerAsync(_selected.Id, d.Id)" disabled="@_busy">Remove</button>
+                            </td>
+                        }
                     </tr>
                 }
                 </tbody>
@@ -166,15 +292,46 @@ else
 }
 
 @code {
+    private sealed record ScoreboardRow(int Rank, string PlayerName, byte? DeviceId, string? Team, int CombatReportScore);
+
     private readonly List<GameListItemDto> _games = [];
     private GameListItemDto? _selected;
     private int? _selectedId;
     private string? _error;
     private bool _busy;
+    private CancellationTokenSource _cts = new();
 
     protected override async Task OnInitializedAsync()
     {
         await RefreshAsync();
+        _ = RunAutoRefreshAsync(_cts.Token);
+    }
+
+    private async Task RunAutoRefreshAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
+        {
+            if (_selected?.Status is not GamePhase.InProgress) continue;
+            try
+            {
+                await InvokeAsync(async () =>
+                {
+                    await RefreshCoreAsync();
+                    StateHasChanged();
+                });
+            }
+            catch (Exception)
+            {
+                break;
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cts.CancelAsync();
+        _cts.Dispose();
     }
 
     private async Task RefreshAsync()
@@ -242,6 +399,15 @@ else
         });
     }
 
+    private async Task RemoveLobbyPlayerAsync(int gameId, int deviceDbId)
+    {
+        await RunSafeAsync(async () =>
+        {
+            await Api.RemoveLobbyDeviceAsync(gameId, deviceDbId);
+            await RefreshCoreAsync();
+        });
+    }
+
     private async Task RefreshCoreAsync()
     {
         _games.Clear();
@@ -268,5 +434,33 @@ else
         {
             _busy = false;
         }
+    }
+
+    private static List<ScoreboardRow> BuildScoreboard(GameListItemDto game)
+    {
+        return game.Devices
+            .Select(d => new
+            {
+                d.PlayerName,
+                d.DeviceId,
+                d.Team,
+                CombatReportScore = d.CombatReportScore,
+                d.AddedOn
+            })
+            .OrderByDescending(x => x.CombatReportScore)
+            .ThenBy(x => x.AddedOn)
+            .ThenBy(x => x.PlayerName)
+            .Select((x, index) => new ScoreboardRow(index + 1, x.PlayerName, x.DeviceId, x.Team, x.CombatReportScore))
+            .ToList();
+    }
+
+    private static int LeaderboardSpread(IReadOnlyList<ScoreboardRow> scoreboard)
+    {
+        if (scoreboard.Count < 2)
+        {
+            return 0;
+        }
+
+        return scoreboard[0].CombatReportScore - scoreboard[^1].CombatReportScore;
     }
 }

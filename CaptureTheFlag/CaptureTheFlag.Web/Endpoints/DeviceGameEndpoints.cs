@@ -194,12 +194,10 @@ public static class DeviceGameEndpoints
             return TypedResults.BadRequest(new { message = "winnerId and loserId must match registered device ids in the current game." });
         }
 
-        var win = Math.Min(255, (winner.CombatScore ?? 0) + 1);
+        var win = winner.CombatScore;
         var loserDrop = body.LoserHadKey ? 2 : 1;
-        var lose = Math.Max(0, (loser.CombatScore ?? 0) - loserDrop);
+        var lose = loser.CombatScore;
         var accumulatedCombat = winner.CombatReportScore + 1;
-        winner.CombatScore = (byte)win;
-        loser.CombatScore = (byte)lose;
         winner.CombatReportScore = accumulatedCombat;
 
         await db.SaveChangesAsync(cancellationToken);
@@ -324,7 +322,7 @@ public static class DeviceGameEndpoints
             return TypedResults.NotFound();
         }
 
-        var score = (byte)Random.Shared.Next(1, 11);
+        var score = (byte)Random.Shared.Next(1, 10);
         device.CombatScore = score;
         await db.SaveChangesAsync(cancellationToken);
 

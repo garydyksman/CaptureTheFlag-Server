@@ -13,12 +13,15 @@ var blazorApp = builder.AddProject<Projects.CaptureTheFlag_App>("app")
     .WithExternalHttpEndpoints();
 
 // Expose both projects on the internet (install devtunnel CLI; URLs appear in Aspire dashboard).
-var devTunnel = builder.AddDevTunnel("ctf-public")
-    .WithAnonymousAccess()
-    .WithReference(webApi)
-    .WithReference(blazorApp);
+// TODO: Re-enable devtunnel once properly installed
+// var devTunnel = builder.AddDevTunnel("ctf-public")
+//     .WithAnonymousAccess()
+//     .WithReference(webApi)
+//     .WithReference(blazorApp);
 
 // Blazor calls the API using the tunneled address (ESP32 + server share the same public base URL).
-blazorApp.WithReference(webApi, devTunnel);
+// TODO: Re-enable devtunnel reference once properly installed
+// blazorApp.WithReference(webApi, devTunnel);
+blazorApp.WithReference(webApi);
 
 builder.Build().Run();

@@ -12,6 +12,9 @@ public sealed class GameInfo
     /// <summary>0 = none / not joinable, 1 = waiting (registrations open), 2 = active, 3 = ended.</summary>
     public int Status { get; set; }
 
+    /// <summary>AssignedDeviceId of the winning flag node. Non-null only when Status == 3.</summary>
+    public byte? WinnerId { get; set; }
+
     /// <summary>
     /// Always serialized as a JSON array; never null. Use <c>[]</c> when there are no players. Values are JSON numbers (often int32 in OpenAPI); firmware may cast to byte.
     /// </summary>

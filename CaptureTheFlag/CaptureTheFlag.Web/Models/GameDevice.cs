@@ -26,5 +26,6 @@ public class GameDevice
     public byte? CombatScore { get; set; }
     public int CombatReportScore { get; set; }
     public byte? EnemyFlagId { get; set; }
+    public byte[]? FlagKey { get; set; }
 }
 

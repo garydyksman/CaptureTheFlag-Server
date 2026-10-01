@@ -1,4 +1,4 @@
-﻿using CaptureTheFlag.Web.Enums;
+using CaptureTheFlag.Web.Enums;
 
 namespace CaptureTheFlag.Web.Models;
 
@@ -9,6 +9,7 @@ public class Game
     public DateTime? StartTime { get; set; }
     public DateTime? EndTime { get; set; }
     public GameStatus Status { get; set; }
+    public byte? WinnerId { get; set; }
 
     public ICollection<GameDevice> Devices { get; set; } = new List<GameDevice>();
 }

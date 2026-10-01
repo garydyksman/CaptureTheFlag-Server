@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using CaptureTheFlag.Web.Contracts;
 using CaptureTheFlag.Web.Data;
 using CaptureTheFlag.Web.Enums;
@@ -66,6 +67,13 @@ public static class DeviceGameEndpoints
             .Produces<RespawnScoreResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
+
+        group.MapGet("/flagnode/{id:int}/key", GetFlagNodeKey)
+            .WithName("DeviceGame_FlagNodeKey")
+            .WithSummary("Returns the persisted 4-byte XOR key for a registered flag node. Game must be Active.")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status409Conflict);
     }
 
     private static async Task<IResult> GetCurrentGame(
@@ -111,7 +119,7 @@ public static class DeviceGameEndpoints
 
         if (lastFinished is not null)
         {
-            return new GameInfo { Status = 3, Players = MapPlayers(lastFinished.Devices) };
+            return new GameInfo { Status = 3, Players = MapPlayers(lastFinished.Devices), WinnerId = lastFinished.WinnerId };
         }
 
         return new GameInfo { Status = 0, Players = [] };
@@ -314,13 +322,13 @@ public static class DeviceGameEndpoints
         HttpContext http,
         CancellationToken cancellationToken)
     {
-        var game = await CurrentGameQuery.GetOpenAsync(db, cancellationToken);
-        if (game is null || game.Status is not GameStatus.InProgress)
+        var snapshot = await CurrentGameQuery.GetOpenAsync(db, cancellationToken);
+        if (snapshot is null || snapshot.Status is not GameStatus.InProgress)
         {
             log.LogInformation(
                 "DeviceApi Deliver not active GameId={GameId} Status={Status} TargetDeviceId={TargetDeviceId} HasKey={HasKey} TraceId={TraceId}",
-                game?.Id,
-                game?.Status.ToString() ?? "null",
+                snapshot?.Id,
+                snapshot?.Status.ToString() ?? "null",
                 body.DeviceId,
                 !string.IsNullOrWhiteSpace(body.Key),
                 http.TraceIdentifier);
@@ -330,38 +338,156 @@ public static class DeviceGameEndpoints
                 contentType: "application/json; charset=utf-8");
         }
 
+        // Key delivery path: validate and potentially end the game
         if (!string.IsNullOrWhiteSpace(body.Key))
         {
+            byte[] deliveredKeyBytes;
             try
             {
-                _ = Convert.FromBase64String(body.Key);
+                deliveredKeyBytes = Convert.FromBase64String(body.Key);
             }
             catch (FormatException)
             {
                 log.LogWarning(
                     "DeviceApi Deliver invalid Base64 GameId={GameId} TargetDeviceId={TargetDeviceId} TraceId={TraceId}",
-                    game.Id,
+                    snapshot.Id,
                     body.DeviceId,
                     http.TraceIdentifier);
                 return TypedResults.BadRequest(new { message = "key must be valid Base64 when provided." });
             }
+
+            // Reload with tracking so we can end the game if key matches
+            var game = await db.Games
+                .Include(g => g.Devices)
+                .Where(g => g.Id == snapshot.Id)
+                .FirstAsync(cancellationToken);
+
+            var homeFlagNode = game.Devices.FirstOrDefault(d =>
+                d.AssignedDeviceId == body.DeviceId && d.DeviceType == DeviceType.FlagNode);
+
+            if (homeFlagNode is null)
+            {
+                log.LogWarning(
+                    "DeviceApi Deliver flag node not found GameId={GameId} TargetDeviceId={TargetDeviceId} TraceId={TraceId}",
+                    game.Id,
+                    body.DeviceId,
+                    http.TraceIdentifier);
+                return Results.Json(
+                    new DeliverAcceptedResponse { Accepted = false },
+                    DeviceWireJson.Options,
+                    contentType: "application/json; charset=utf-8");
+            }
+
+            var enemyFlagNode = game.Devices.FirstOrDefault(d =>
+                d.DeviceType == DeviceType.FlagNode &&
+                d.Team != homeFlagNode.Team &&
+                d.FlagKey is not null);
+
+            var keyMatch = enemyFlagNode is not null && deliveredKeyBytes.SequenceEqual(enemyFlagNode.FlagKey!);
+
+            if (keyMatch)
+            {
+                game.Status = GameStatus.Finished;
+                game.EndTime = DateTime.UtcNow;
+                game.WinnerId = body.DeviceId;
+                await db.SaveChangesAsync(cancellationToken);
+                log.LogInformation(
+                    "DeviceApi Deliver key match — game ended GameId={GameId} WinnerId={WinnerId} TraceId={TraceId}",
+                    game.Id,
+                    body.DeviceId,
+                    http.TraceIdentifier);
+            }
+            else
+            {
+                log.LogInformation(
+                    "DeviceApi Deliver key mismatch GameId={GameId} TargetDeviceId={TargetDeviceId} TraceId={TraceId}",
+                    game.Id,
+                    body.DeviceId,
+                    http.TraceIdentifier);
+            }
+
+            return Results.Json(
+                new DeliverAcceptedResponse { Accepted = keyMatch },
+                DeviceWireJson.Options,
+                contentType: "application/json; charset=utf-8");
         }
 
+        // No key: existing ping/ack behavior
         var exists = await db.GameDevices.AnyAsync(
-            d => d.GameId == game.Id && d.AssignedDeviceId == body.DeviceId,
+            d => d.GameId == snapshot.Id && d.AssignedDeviceId == body.DeviceId,
             cancellationToken);
 
-        var accepted = exists;
         log.LogInformation(
-            "DeviceApi Deliver GameId={GameId} TargetDeviceId={TargetDeviceId} Accepted={Accepted} HasKey={HasKey} TraceId={TraceId}",
-            game.Id,
+            "DeviceApi Deliver GameId={GameId} TargetDeviceId={TargetDeviceId} Accepted={Accepted} TraceId={TraceId}",
+            snapshot.Id,
             body.DeviceId,
-            accepted,
-            !string.IsNullOrWhiteSpace(body.Key),
+            exists,
             http.TraceIdentifier);
 
         return Results.Json(
-            new DeliverAcceptedResponse { Accepted = accepted },
+            new DeliverAcceptedResponse { Accepted = exists },
+            DeviceWireJson.Options,
+            contentType: "application/json; charset=utf-8");
+    }
+
+    private static async Task<IResult> GetFlagNodeKey(
+        int id,
+        GameDbContext db,
+        ILogger<DeviceApiLog> log,
+        HttpContext http,
+        CancellationToken cancellationToken)
+    {
+        if (id is < 1 or > 254)
+        {
+            log.LogWarning("DeviceApi FlagNodeKey bad id={Id} TraceId={TraceId}", id, http.TraceIdentifier);
+            return TypedResults.BadRequest(new { message = "id must be between 1 and 254." });
+        }
+
+        var game = await CurrentGameQuery.GetOpenAsync(db, cancellationToken);
+        if (game is null || game.Status is not GameStatus.InProgress)
+        {
+            log.LogWarning(
+                "DeviceApi FlagNodeKey not active GameId={GameId} Status={Status} DeviceId={DeviceId} TraceId={TraceId}",
+                game?.Id,
+                game?.Status.ToString() ?? "null",
+                id,
+                http.TraceIdentifier);
+            return TypedResults.Conflict(new { message = "A flag node key is only available while a game is Active (status 2)." });
+        }
+
+        var device = await db.GameDevices
+            .Where(d => d.GameId == game.Id && d.AssignedDeviceId == (byte)id && d.DeviceType == DeviceType.FlagNode)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (device is null)
+        {
+            log.LogWarning(
+                "DeviceApi FlagNodeKey device not found GameId={GameId} DeviceId={DeviceId} TraceId={TraceId}",
+                game.Id,
+                id,
+                http.TraceIdentifier);
+            return TypedResults.NotFound();
+        }
+
+        if (device.FlagKey is null)
+        {
+            device.FlagKey = RandomNumberGenerator.GetBytes(4);
+            await db.SaveChangesAsync(cancellationToken);
+            log.LogInformation(
+                "DeviceApi FlagNodeKey generated GameId={GameId} DeviceId={DeviceId} TraceId={TraceId}",
+                game.Id,
+                id,
+                http.TraceIdentifier);
+        }
+
+        log.LogInformation(
+            "DeviceApi FlagNodeKey returned GameId={GameId} DeviceId={DeviceId} TraceId={TraceId}",
+            game.Id,
+            id,
+            http.TraceIdentifier);
+
+        return Results.Json(
+            new { key = Convert.ToBase64String(device.FlagKey) },
             DeviceWireJson.Options,
             contentType: "application/json; charset=utf-8");
     }

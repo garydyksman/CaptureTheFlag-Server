@@ -1,0 +1,39 @@
+{
+  "projectRoot": "/Users/garydyksman/Source/CaptureTheFlag-Server",
+  "projectLabel": "CaptureTheFlag-Server",
+  "logPath": "/Users/garydyksman/Source/CaptureTheFlag-Server/.ax/mcp-verbose-2026-08-21.log",
+  "mode": "verbose_only",
+  "windowMinutes": 30,
+  "updatedAtMs": 1787309699872,
+  "score": 100,
+  "grade": "A",
+  "correlationPct": 100.0,
+  "matchedCalls": 0,
+  "unmatchedAxCalls": 0,
+  "verboseClusters": 0,
+  "enrichment": {
+    "injectCharsP50": 0,
+    "injectCharsP95": 0,
+    "enrichDoneRate": 0.0,
+    "emptyEnrichCount": 0,
+    "matchedRulesRate": 0.0,
+    "preflightCount": 0,
+    "inboundCount": 0
+  },
+  "toolMix": {
+    "preflight": 0,
+    "explore": 0,
+    "guard": 0,
+    "graph": 0,
+    "otherAx": 0,
+    "read": 0,
+    "grep": 0
+  },
+  "findings": [],
+  "tokensAtRisk": 0,
+  "criticalCount": 0,
+  "verboseEnabled": false,
+  "verbosePresent": false,
+  "sessionId": null,
+  "sessionPath": null
+}

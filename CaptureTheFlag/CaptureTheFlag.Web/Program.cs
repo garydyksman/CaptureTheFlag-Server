@@ -60,6 +60,25 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<GameDbContext>();
     await db.Database.MigrateAsync();
+
+    // Auto-create a new game in lobby state if no open games exist
+    var hasOpenGame = await db.Games.AnyAsync(g => g.Status != CaptureTheFlag.Web.Enums.GameStatus.Finished);
+    if (!hasOpenGame)
+    {
+        var now = DateTime.UtcNow;
+        var game = new CaptureTheFlag.Web.Models.Game
+        {
+            CreateTime = now,
+            StartTime = null,
+            EndTime = null,
+            Status = CaptureTheFlag.Web.Enums.GameStatus.WaitingForPlayers
+        };
+        db.Games.Add(game);
+        await db.SaveChangesAsync();
+
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("Auto-created game in lobby state: GameId={GameId}", game.Id);
+    }
 }
 
 if (app.Environment.IsDevelopment())

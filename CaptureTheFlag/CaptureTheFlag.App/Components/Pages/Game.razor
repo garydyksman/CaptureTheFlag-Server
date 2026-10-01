@@ -304,6 +304,21 @@ else
     protected override async Task OnInitializedAsync()
     {
         await RefreshAsync();
+
+        // Auto-select the first open game (WaitingForPlayers or InProgress)
+        if (_selectedId is null && _games.Count > 0)
+        {
+            var openGame = _games
+                .Where(g => g.Status == GamePhase.WaitingForPlayers || g.Status == GamePhase.InProgress)
+                .OrderByDescending(g => g.Id)
+                .FirstOrDefault();
+
+            if (openGame is not null)
+            {
+                await SelectAsync(openGame.Id);
+            }
+        }
+
         _ = RunAutoRefreshAsync(_cts.Token);
     }
 

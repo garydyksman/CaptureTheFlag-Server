@@ -5,6 +5,17 @@ public sealed class RegisterPlayerNameRequest
     public string? PlayerName { get; set; }
 }
 
+public sealed class RegisterFlagnodeRequest
+{
+    public string MacAddress { get; set; } = string.Empty;
+}
+
+public sealed class RegisterPlayerRequest
+{
+    public string MacAddress { get; set; } = string.Empty;
+    public string? PlayerName { get; set; }
+}
+
 public sealed class CombatReportRequest
 {
     public byte WinnerId { get; set; }

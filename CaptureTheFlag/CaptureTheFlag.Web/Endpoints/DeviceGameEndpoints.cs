@@ -24,9 +24,25 @@ public static class DeviceGameEndpoints
             .WithSummary("Current game state for devices.")
             .Produces<GameInfo>(StatusCodes.Status200OK);
 
+        group.MapPost("/register/flagnode", RegisterFlagnode)
+            .WithName("DeviceGame_RegisterFlagnode")
+            .WithSummary("Register a flagnode device by MAC address.")
+            .Produces<PlayerSetup>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status409Conflict);
+
+        group.MapPost("/register/player", RegisterPlayer)
+            .WithName("DeviceGame_RegisterPlayer")
+            .WithSummary("Register a player device by MAC address with optional player name.")
+            .Produces<PlayerSetup>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status409Conflict);
+
         group.MapPost("/register", Register)
             .WithName("DeviceGame_Register")
-            .WithSummary("Register in lobby, or reconnect during play: same playerName returns existing deviceId and saved scores.")
+            .WithSummary("LEGACY: Register in lobby, or reconnect during play: same playerName returns existing deviceId and saved scores.")
             .Produces<PlayerSetup>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound)
@@ -110,10 +126,85 @@ public static class DeviceGameEndpoints
                 DeviceId = d.AssignedDeviceId!.Value,
                 Name = d.PlayerName,
                 Team = d.Team ?? string.Empty,
+                Type = d.DeviceType == DeviceType.FlagNode ? "flag" : "player",
                 CombatScore = d.CombatScore ?? 0,
                 EnemyFlagId = d.EnemyFlagId ?? 0
             })
             .ToList();
+
+    private static async Task<IResult> RegisterFlagnode(
+        RegisterFlagnodeRequest body,
+        GameDbContext db,
+        ILogger<DeviceApiLog> log,
+        HttpContext http,
+        CancellationToken cancellationToken)
+    {
+        var game = await CurrentGameQuery.GetOpenAsync(db, cancellationToken);
+        if (game is null)
+        {
+            log.LogWarning("DeviceApi RegisterFlagnode rejected: no open game TraceId={TraceId}", http.TraceIdentifier);
+            return TypedResults.NotFound();
+        }
+
+        var (device, error) = await GameDeviceRegistration.TryRegisterFlagnodeAsync(game.Id, body.MacAddress, db, cancellationToken);
+        if (error is not null)
+        {
+            log.LogWarning(
+                "DeviceApi RegisterFlagnode rejected GameId={GameId} MacAddress={MacAddress} TraceId={TraceId}",
+                game.Id,
+                body.MacAddress,
+                http.TraceIdentifier);
+            return error;
+        }
+
+        var setup = new PlayerSetup { DeviceId = device!.AssignedDeviceId!.Value };
+        log.LogInformation(
+            "DeviceApi RegisterFlagnode ok GameId={GameId} MacAddress={MacAddress} AssignedDeviceId={AssignedDeviceId} TraceId={TraceId}",
+            game.Id,
+            body.MacAddress,
+            setup.DeviceId,
+            http.TraceIdentifier);
+
+        return Results.Json(setup, DeviceWireJson.Options, contentType: "application/json; charset=utf-8", statusCode: StatusCodes.Status200OK);
+    }
+
+    private static async Task<IResult> RegisterPlayer(
+        RegisterPlayerRequest body,
+        GameDbContext db,
+        ILogger<DeviceApiLog> log,
+        HttpContext http,
+        CancellationToken cancellationToken)
+    {
+        var game = await CurrentGameQuery.GetOpenAsync(db, cancellationToken);
+        if (game is null)
+        {
+            log.LogWarning("DeviceApi RegisterPlayer rejected: no open game TraceId={TraceId}", http.TraceIdentifier);
+            return TypedResults.NotFound();
+        }
+
+        var (device, error) = await GameDeviceRegistration.TryRegisterPlayerAsync(game.Id, body.MacAddress, body.PlayerName, db, cancellationToken);
+        if (error is not null)
+        {
+            log.LogWarning(
+                "DeviceApi RegisterPlayer rejected GameId={GameId} MacAddress={MacAddress} PlayerName={PlayerName} TraceId={TraceId}",
+                game.Id,
+                body.MacAddress,
+                body.PlayerName,
+                http.TraceIdentifier);
+            return error;
+        }
+
+        var setup = new PlayerSetup { DeviceId = device!.AssignedDeviceId!.Value };
+        log.LogInformation(
+            "DeviceApi RegisterPlayer ok GameId={GameId} MacAddress={MacAddress} PlayerName={PlayerName} AssignedDeviceId={AssignedDeviceId} TraceId={TraceId}",
+            game.Id,
+            body.MacAddress,
+            device.PlayerName,
+            setup.DeviceId,
+            http.TraceIdentifier);
+
+        return Results.Json(setup, DeviceWireJson.Options, contentType: "application/json; charset=utf-8", statusCode: StatusCodes.Status200OK);
+    }
 
     private static async Task<IResult> Register(
         RegisterPlayerNameRequest body,

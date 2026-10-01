@@ -82,7 +82,7 @@ public static class GameEndpoints
             CreateTime = now,
             StartTime = request.StartTime,
             EndTime = request.EndTime,
-            Status = request.Status ?? GameStatus.Created
+            Status = request.Status ?? GameStatus.WaitingForPlayers
         };
 
         db.Games.Add(game);

@@ -1,8 +1,11 @@
 {
   "mcpServers": {
     "aspire": {
-      "command": "C:\\Users\\gary.dyksman\\.dotnet\\tools\\aspire.cmd",
-      "args": ["agent", "mcp"]
+      "args": [
+        "agent",
+        "mcp"
+      ],
+      "command": "C:\\Users\\gary.dyksman\\.dotnet\\tools\\aspire.cmd"
     },
     "ax": {
       "args": [
@@ -11,7 +14,7 @@
         "--path",
         "${CLAUDE_PROJECT_DIR:-.}"
       ],
-      "command": "C:\\Users\\gary.dyksman\\AppData\\Local\\ax\\current\\bin\\ax.exe",
+      "command": "/usr/local/bin/ax",
       "cwd": "${CLAUDE_PROJECT_DIR:-.}"
     }
   }

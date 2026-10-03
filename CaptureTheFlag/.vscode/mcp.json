@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "ax": {
+      "args": [
+        "serve",
+        "--mcp",
+        "--path",
+        "${workspaceFolder}"
+      ],
+      "command": "/usr/local/bin/ax",
+      "cwd": "${workspaceFolder}",
+      "type": "stdio"
+    }
+  }
+}

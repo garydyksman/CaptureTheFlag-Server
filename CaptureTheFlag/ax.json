@@ -1,0 +1,16 @@
+{
+  "agents": {
+    "ides": [
+      "vscode",
+      "claude"
+    ]
+  },
+  "policy": {
+    "agentsDir": ".agents",
+    "stackDetect": "off",
+    "stacks": [
+      "dotnet",
+      "javascript"
+    ]
+  }
+}

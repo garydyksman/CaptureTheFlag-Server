@@ -1,0 +1,5 @@
+{
+    "appHost": {
+        "path": "CaptureTheFlag/CaptureTheFlag.Host/CaptureTheFlag.Host.csproj"
+    }
+}

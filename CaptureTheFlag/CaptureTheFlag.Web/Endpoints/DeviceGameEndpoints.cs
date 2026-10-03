@@ -108,18 +108,19 @@ public static class DeviceGameEndpoints
     {
         if (open is not null)
         {
+            byte gameId = (byte)(open.Id % 256);
             return open.Status switch
             {
-                GameStatus.Created => new GameInfo { Status = 0, Players = [] },
-                GameStatus.WaitingForPlayers => new GameInfo { Status = 1, Players = MapPlayers(open.Devices) },
-                GameStatus.InProgress => new GameInfo { Status = 2, Players = MapPlayers(open.Devices) },
+                GameStatus.Created => new GameInfo { Status = 0, Players = [], GameId = gameId },
+                GameStatus.WaitingForPlayers => new GameInfo { Status = 1, Players = MapPlayers(open.Devices), GameId = gameId },
+                GameStatus.InProgress => new GameInfo { Status = 2, Players = MapPlayers(open.Devices), GameId = gameId },
                 _ => new GameInfo { Status = 0, Players = [] }
             };
         }
 
         if (lastFinished is not null)
         {
-            return new GameInfo { Status = 3, Players = MapPlayers(lastFinished.Devices), WinnerId = lastFinished.WinnerId };
+            return new GameInfo { Status = 3, Players = MapPlayers(lastFinished.Devices), WinnerId = lastFinished.WinnerId, GameId = (byte)(lastFinished.Id % 256) };
         }
 
         return new GameInfo { Status = 0, Players = [] };

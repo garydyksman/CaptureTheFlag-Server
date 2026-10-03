@@ -15,6 +15,9 @@ public sealed class GameInfo
     /// <summary>AssignedDeviceId of the winning flag node. Non-null only when Status == 3.</summary>
     public byte? WinnerId { get; set; }
 
+    /// <summary>Low byte of the server game row ID. Used by firmware to ignore GameEnd broadcasts from previous games.</summary>
+    public byte GameId { get; set; }
+
     /// <summary>
     /// Always serialized as a JSON array; never null. Use <c>[]</c> when there are no players. Values are JSON numbers (often int32 in OpenAPI); firmware may cast to byte.
     /// </summary>
